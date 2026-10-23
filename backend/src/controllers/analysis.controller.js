@@ -5,7 +5,7 @@ import { AppError } from '../utils/errors.js';
 import { successResponse } from '../utils/api-response.js';
 import { deleteAnalysis } from '../services/analysis.service.js';
 
-const analysisProjection = 'fileName fileSizeBytes status createdAt updatedAt dateRange totalRows invalidRows missingValues summary forecast anomalySummary modelVersion processingDurationMs error';
+const analysisProjection = 'fileName fileSizeBytes status createdAt updatedAt dateRange totalRows invalidRows missingValues availableColumns summary forecast anomalySummary modelVersion processingDurationMs error';
 
 export async function getAnalysis(req, res) {
   const id = parseAnalysisId(req.params.analysisId);
@@ -89,7 +89,7 @@ export async function getConsumption(req, res) {
   const filter = { analysisId: analysis._id };
   const [items, total] = await Promise.all([
     Reading.find(filter)
-      .select('-_id timestamp Global_active_power Global_reactive_power Voltage Global_intensity Sub_metering_1 Sub_metering_2 Sub_metering_3')
+      .select('-_id timestamp Global_active_power Global_reactive_power Voltage Global_intensity Sub_metering_1 Sub_metering_2 Sub_metering_3 anomaly anomalyScore')
       .sort({ timestamp: 1 })
       .skip((page - 1) * pageSize)
       .limit(pageSize)

@@ -202,3 +202,30 @@ test('upload rejects missing file and unsupported extensions', async () => {
     .attach('file', Buffer.from('not csv'), { filename: 'data.txt', contentType: 'text/plain' });
   assert.equal(unsupported.status, 415);
 });
+
+test('getAnalysis returns availableColumns along with analysis metadata', async () => {
+  const originalFindById = Analysis.findById;
+  const analysisId = new mongoose.Types.ObjectId();
+  const mockCols = ['Date', 'Time', 'Global_active_power', 'Voltage'];
+  Analysis.findById = () => ({
+    select() {
+      return this;
+    },
+    async lean() {
+      return {
+        _id: analysisId,
+        fileName: 'test.csv',
+        status: 'completed',
+        availableColumns: mockCols
+      };
+    }
+  });
+  try {
+    const res = await request(app).get(`/api/analyses/${analysisId}`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body.data.availableColumns, mockCols);
+    assert.equal(res.body.data.analysisId, String(analysisId));
+  } finally {
+    Analysis.findById = originalFindById;
+  }
+});
