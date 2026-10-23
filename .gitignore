@@ -14,6 +14,7 @@ data/processed/
 backend/uploads/
 backend/tmp/
 coverage/
+/frontend/dist/
 /household_power_consumption.txt
 /energydata_complete.csv
 /Tetuan City power consumption.csv
