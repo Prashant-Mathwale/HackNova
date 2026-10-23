@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+*.py[cod]
+.env
+artifacts/
+data/raw/
+data/processed/
+/household_power_consumption.txt
+/energydata_complete.csv
+/Tetuan City power consumption.csv
