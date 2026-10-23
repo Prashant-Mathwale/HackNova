@@ -5,7 +5,7 @@ import {
   LoaderCircle, LockKeyhole, LogOut, Mail, Menu, ShieldCheck, Sparkles, TriangleAlert,
   Upload, Waves, X, Zap
 } from 'lucide-react';
-import { getAnomalies, getConsumptionSample, getForecast, uploadCsv, waitForAnalysis } from './api.js';
+import { getAnomalies, getConsumptionSample, getForecast, loginUser, registerUser, uploadCsv, waitForAnalysis } from './api.js';
 
 const navigation = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -28,30 +28,188 @@ function Logo({ small = false }) {
 }
 
 function Login({ onContinue }) {
+  const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  function submit(event) {
+  const [successMsg, setSuccessMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(event) {
     event.preventDefault();
-    if (!email.trim() || !password) return setError('Enter an email and password to continue in preview mode.');
-    onContinue(email.trim());
+    setError('');
+    setSuccessMsg('');
+
+    if (mode === 'register' && !name.trim()) {
+      return setError('Please enter your full name.');
+    }
+    if (!email.trim() || !password) {
+      return setError('Please enter both email and password.');
+    }
+    if (mode === 'register' && password.length < 6) {
+      return setError('Password must be at least 6 characters long.');
+    }
+
+    setSubmitting(true);
+    try {
+      if (mode === 'register') {
+        const result = await registerUser(name.trim(), email.trim(), password);
+        setSuccessMsg('Account created successfully! Signing you in...');
+        setTimeout(() => {
+          onContinue(result.email || email.trim());
+        }, 800);
+      } else {
+        const result = await loginUser(email.trim(), password);
+        onContinue(result.email || email.trim());
+      }
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   }
+
   return <main className="login-page">
-    <div className="login-top"><Logo /><span className="preview-chip"><i /> PREVIEW MODE</span></div>
+    <div className="login-top"><Logo /><span className="preview-chip"><i /> LIVE APP</span></div>
     <div className="login-layout">
-      <section className="login-intro"><p className="eyebrow"><i /> SMART METER ANALYTICS</p><h1>Know where your<br /><em>energy goes.</em></h1><p className="intro-copy">Turn household meter readings into a clearer picture of consumption, demand and unusual patterns.</p><div className="intro-note"><span className="note-icon"><Activity size={17} /></span><span><strong>One workspace. Clear signals.</strong><small>Upload a CSV to begin an analysis.</small></span></div></section>
+      <section className="login-intro">
+        <p className="eyebrow"><i /> SMART METER ANALYTICS</p>
+        <h1>Know where your<br /><em>energy goes.</em></h1>
+        <p className="intro-copy">Turn household meter readings into a clearer picture of consumption, demand and unusual patterns.</p>
+        <div className="intro-note">
+          <span className="note-icon"><Activity size={17} /></span>
+          <span><strong>One workspace. Clear signals.</strong><small>Upload a CSV to begin an analysis.</small></span>
+        </div>
+      </section>
+
       <section className="login-panel">
-        <div className="panel-heading"><div><p className="eyebrow">YOUR WORKSPACE</p><h2>Sign in to EnergyIQ</h2></div><span className="panel-shield"><ShieldCheck size={19} /></span></div>
-        <button className="demo-access" type="button" onClick={() => onContinue('demo@energyiq.local')}><span className="demo-icon"><Zap size={18} fill="currentColor" /></span><span><strong>Continue with demo access</strong><small>Open the data workspace</small></span><ArrowRight size={18} /></button>
-        <div className="form-divider"><i /> OR CONTINUE IN PREVIEW <i /></div>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">YOUR WORKSPACE</p>
+            <h2>{mode === 'login' ? 'Sign in to EnergyIQ' : 'Create an Account'}</h2>
+          </div>
+          <span className="panel-shield"><ShieldCheck size={19} /></span>
+        </div>
+
+        <div className="auth-tabs" style={{ display: 'flex', gap: '8px', margin: '20px 0 16px', background: '#f0f5f2', padding: '4px', borderRadius: '8px' }}>
+          <button
+            type="button"
+            onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: 0,
+              borderRadius: '6px',
+              background: mode === 'login' ? '#fff' : 'transparent',
+              fontWeight: mode === 'login' ? '600' : '400',
+              color: mode === 'login' ? 'var(--green-dark)' : 'var(--muted)',
+              boxShadow: mode === 'login' ? '0 2px 6px rgba(0,0,0,.06)' : 'none',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('register'); setError(''); setSuccessMsg(''); }}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: 0,
+              borderRadius: '6px',
+              background: mode === 'register' ? '#fff' : 'transparent',
+              fontWeight: mode === 'register' ? '600' : '400',
+              color: mode === 'register' ? 'var(--green-dark)' : 'var(--muted)',
+              boxShadow: mode === 'register' ? '0 2px 6px rgba(0,0,0,.06)' : 'none',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            Register
+          </button>
+        </div>
+
+        <button className="demo-access" type="button" onClick={() => onContinue('demo@energyiq.local')}>
+          <span className="demo-icon"><Zap size={18} fill="currentColor" /></span>
+          <span><strong>Continue with demo access</strong><small>Skip login and open the workspace</small></span>
+          <ArrowRight size={18} />
+        </button>
+
+        <div className="form-divider"><i /> OR WITH YOUR ACCOUNT <i /></div>
+
         <form onSubmit={submit}>
-          <label className="field-label" htmlFor="email">Email address</label><div className="input-wrap"><Mail size={16} /><input id="email" type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></div>
-          <div className="password-label"><label className="field-label" htmlFor="password">Password</label><button type="button" className="text-button" onClick={() => setError('Password sign-in is not connected to the backend yet.')}>Forgot password?</button></div>
-          <div className="input-wrap"><LockKeyhole size={16} /><input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter any preview password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /><button type="button" className="input-action" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <X size={15} /> : <CircleHelp size={15} />}</button></div>
-          {error && <p className="form-error" role="alert">{error}</p>}<button className="primary-button login-submit" type="submit">Enter preview workspace <ArrowRight size={16} /></button>
+          {mode === 'register' && (
+            <div style={{ marginBottom: '14px' }}>
+              <label className="field-label" htmlFor="name">Full Name</label>
+              <div className="input-wrap">
+                <input
+                  id="name"
+                  type="text"
+                  placeholder="e.g. Alex Taylor"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  autoComplete="name"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          <label className="field-label" htmlFor="email">Email address</label>
+          <div className="input-wrap">
+            <Mail size={16} />
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              required
+            />
+          </div>
+
+          <div className="password-label">
+            <label className="field-label" htmlFor="password">Password</label>
+            {mode === 'login' && (
+              <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Min 6 characters</span>
+            )}
+          </div>
+          <div className="input-wrap">
+            <LockKeyhole size={16} />
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder={mode === 'register' ? 'Create a secure password (6+ chars)' : 'Enter your password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+              required
+            />
+            <button
+              type="button"
+              className="input-action"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <X size={15} /> : <CircleHelp size={15} />}
+            </button>
+          </div>
+
+          {error && <p className="form-error" role="alert">{error}</p>}
+          {successMsg && <p style={{ margin: '10px 0 0', color: 'var(--green)', fontSize: '12px' }}>{successMsg}</p>}
+
+          <button className="primary-button login-submit" type="submit" disabled={submitting}>
+            {submitting ? 'Please wait...' : (mode === 'register' ? 'Create Account' : 'Sign In')} <ArrowRight size={16} />
+          </button>
         </form>
-        <p className="auth-disclaimer"><ShieldCheck size={13} /> Preview only. Authentication is not implemented by the API.</p>
+
+        <p className="auth-disclaimer">
+          <ShieldCheck size={13} /> Secure authentication connected to MongoDB Atlas.
+        </p>
       </section>
     </div>
     <div className="login-footer"><span>ENERGYIQ / HACKNOVA '26</span><span>Household energy intelligence</span></div>

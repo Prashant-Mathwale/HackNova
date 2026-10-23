@@ -9,6 +9,22 @@ async function request(path, options) {
   return payload.data;
 }
 
+export function registerUser(name, email, password) {
+  return request('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password })
+  });
+}
+
+export function loginUser(email, password) {
+  return request('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+}
+
 export function uploadCsv(file) {
   const body = new FormData();
   body.append('file', file);
