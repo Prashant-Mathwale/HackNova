@@ -4,7 +4,6 @@ __pycache__/
 venv/
 *.py[cod]
 .env
-artifacts/
 data/raw/
 data/processed/
 /household_power_consumption.txt
