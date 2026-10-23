@@ -19,6 +19,11 @@ def test_anomaly_detector_training_and_scoring(household_frame, tmp_path):
     results = score_anomalies(household_frame.tail(3), artifact)
     assert len(results) == 3
     assert all("score" in result and "contributing_readings" in result for result in results)
+    response = ModelRegistry({"anomaly_detection": artifact}).anomalies(
+        household_frame.tail(3).to_dict(orient="records")
+    )
+    assert response["model"] == {"name": "isolation_forest", "version": "1.0"}
+    assert len(response["results"]) == 3
 
 
 def test_peak_stats_recommendations_and_json_safe_values(readings):

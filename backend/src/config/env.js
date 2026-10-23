@@ -30,7 +30,7 @@ const envSchema = z.object({
   ANALYSIS_TIMEOUT_MS: positiveInteger.default(120000),
   ML_REQUEST_TIMEOUT_MS: positiveInteger.default(30000),
   FORECAST_HISTORY_ROWS: positiveInteger.default(1000),
-  ANOMALY_BATCH_SIZE: positiveInteger.default(5000)
+  ANOMALY_BATCH_SIZE: positiveInteger.max(10000).default(5000)
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -32,7 +32,7 @@ test('recognizes missing values and stores valid chronological UCI readings', as
       assert.equal(result.summary.validReadingCount, 2);
       assert.equal(result.summary.invalidRows, 1);
       assert.equal(result.summary.missingValues, 2);
-      assert.equal(result.forecastReadings.length, 2);
+      assert.equal(result.forecastReadings.length, 1);
       assert.equal(inserted.length, 2);
       assert.equal(result.summary.averageActivePowerKw, 1.975);
     });
@@ -109,6 +109,28 @@ test('rejects out-of-range measurement values instead of retaining them', async 
       await assert.rejects(parseAndStoreCsv(filePath, new mongoose.Types.ObjectId()), {
         code: 'NO_VALID_READINGS'
       });
+    });
+  } finally {
+    Reading.insertMany = originalInsertMany;
+  }
+});
+
+test('forecast history only retains the latest uninterrupted one-minute sequence', async () => {
+  const analysisId = new mongoose.Types.ObjectId();
+  const originalInsertMany = Reading.insertMany;
+  Reading.insertMany = async () => [];
+  try {
+    const rows = Array.from({ length: 35 }, (_value, index) => {
+      const minute = String(index).padStart(2, '0');
+      return `01/01/2007;00:${minute}:00;2.45;0.2;230.1;10.5;0;1;5`;
+    });
+    rows.push('01/01/2007;00:40:00;2.45;0.2;230.1;10.5;0;1;5');
+    rows.push('01/01/2007;00:41:00;2.45;0.2;230.1;10.5;0;1;5');
+    await withCsv(`${header}\n${rows.join('\n')}\n`, async (filePath) => {
+      const result = await parseAndStoreCsv(filePath, analysisId);
+      assert.equal(result.summary.validReadingCount, 37);
+      assert.equal(result.forecastReadings.length, 2);
+      assert.equal(result.forecastReadings[0].timestamp.toISOString(), '2007-01-01T00:40:00.000Z');
     });
   } finally {
     Reading.insertMany = originalInsertMany;

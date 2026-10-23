@@ -68,8 +68,8 @@ export async function processAnalysis(analysisId, filePath) {
     await analysis.save();
 
     const forecastHistory = parsed.forecastReadings;
-    if (forecastHistory.length < 2) {
-      throw Object.assign(new Error('At least two valid readings are required for forecasting.'), {
+    if (forecastHistory.length < 30) {
+      throw Object.assign(new Error('At least 30 valid readings are required for forecasting.'), {
         code: 'INSUFFICIENT_HISTORY',
         statusCode: 422
       });
@@ -89,15 +89,7 @@ export async function processAnalysis(analysisId, filePath) {
     let anomalyModelVersion = null;
     const cursor = Reading.find({
       analysisId,
-      ...Object.fromEntries([
-        'Global_active_power',
-        'Global_reactive_power',
-        'Voltage',
-        'Global_intensity',
-        'Sub_metering_1',
-        'Sub_metering_2',
-        'Sub_metering_3'
-      ].map((field) => [field, { $ne: null }]))
+      Global_active_power: { $ne: null }
     }).sort({ timestamp: 1 }).lean().cursor();
     let chunk = [];
     for await (const reading of cursor) {

@@ -1,5 +1,4 @@
 import { createReadStream } from 'node:fs';
-import { open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import readline from 'node:readline';
 import { parse } from 'csv-parse';
@@ -154,7 +153,26 @@ export async function parseAndStoreCsv(filePath, analysisId, maxRows = env.MAX_C
 
       const activePower = measurements.Global_active_power;
       const invalidNumber = Object.values(measurements).some((value) => Number.isNaN(value));
-      if (!timestamp || activePower === null || invalidNumber || (lastTimestamp && timestamp <= lastTimestamp)) {
+      if (!timestamp) {
+        summary.invalidRows += 1;
+        forecastReadings.length = 0;
+        forecastOffset = 0;
+        continue;
+      }
+      if (lastTimestamp && timestamp <= lastTimestamp) {
+        summary.invalidRows += 1;
+        forecastReadings.length = 0;
+        forecastOffset = 0;
+        continue;
+      }
+
+      const consecutive = !lastTimestamp || timestamp.getTime() - lastTimestamp.getTime() === 60_000;
+      lastTimestamp = timestamp;
+      if (!consecutive || activePower === null || invalidNumber) {
+        forecastReadings.length = 0;
+        forecastOffset = 0;
+      }
+      if (activePower === null || invalidNumber) {
         summary.invalidRows += 1;
         continue;
       }
@@ -170,7 +188,6 @@ export async function parseAndStoreCsv(filePath, analysisId, maxRows = env.MAX_C
       }
       if (!summary.start) summary.start = timestamp;
       summary.end = timestamp;
-      lastTimestamp = timestamp;
       if (reading.Global_active_power !== null) {
         if (forecastReadings.length < env.FORECAST_HISTORY_ROWS) {
           forecastReadings.push(reading);
