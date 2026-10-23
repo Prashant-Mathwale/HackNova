@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.services.analysis_service import ModelRegistry
 from app.api import routes
+from app.models.anomaly_detection import train_anomaly_detector
 
 
 def test_required_api_endpoints_and_unready_models(monkeypatch, readings):
@@ -40,3 +41,29 @@ def test_required_api_endpoints_and_unready_models(monkeypatch, readings):
         "/predict/appliances",
         json={"timestamp": "2024-01-01T00:00:00Z", "temperature_outdoor_c": 10, "humidity_outdoor_pct": 50},
     ).status_code == 503
+
+
+def test_anomaly_api_returns_model_name_and_version(monkeypatch, household_frame, tmp_path):
+    train_anomaly_detector(household_frame, {"source": "synthetic test fixture"}, tmp_path)
+    from app.models.anomaly_detection import load_anomaly_detector
+
+    artifact = load_anomaly_detector(tmp_path)
+    monkeypatch.setattr(routes, "registry", ModelRegistry({"anomaly_detection": artifact}))
+    readings = [
+        {
+            "timestamp": row.timestamp.isoformat(),
+            "active_power_kw": float(row.active_power_kw),
+            "reactive_power": float(row.reactive_power),
+            "voltage_v": float(row.voltage_v),
+            "current_a": float(row.current_a),
+            "sub_metering_1": float(row.sub_metering_1),
+            "sub_metering_2": float(row.sub_metering_2),
+            "sub_metering_3": float(row.sub_metering_3),
+        }
+        for row in household_frame.tail(3).itertuples()
+    ]
+
+    response = TestClient(app).post("/detect/anomalies", json={"readings": readings})
+    assert response.status_code == 200
+    assert response.json()["model"] == {"name": "isolation_forest", "version": "1.0"}
+    assert len(response.json()["results"]) == len(readings)

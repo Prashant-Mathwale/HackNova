@@ -1,11 +1,19 @@
+node_modules/
 __pycache__/
 .pytest_cache/
 .venv/
 venv/
 *.py[cod]
 .env
+.env.*
+!.env.example
+*.log
+artifacts/
 data/raw/
 data/processed/
+backend/uploads/
+backend/tmp/
+coverage/
 /household_power_consumption.txt
 /energydata_complete.csv
 /Tetuan City power consumption.csv

@@ -149,7 +149,7 @@ Example of the response shape, captured from a local smoke test using 100 actual
 
 ## Node.js integration
 
-`examples/node_integration.js` contains an Express router reference for health/status, forecasting, anomalies, unified analysis and recommendations. Configure `ENERGYIQ_ML_URL` (default `http://127.0.0.1:8000`) and optionally `ENERGYIQ_ML_TIMEOUT_MS`. The example propagates non-2xx and timeout errors to Express error middleware; it does not create the main application. Keep authentication and user data persistence in the Node.js service.
+The production EnergyIQ Node backend lives in `backend/`. Its `src/services/ml.service.js` adapter uses `ML_SERVICE_URL` (default `http://127.0.0.1:8000`), maps UCI meter columns to this service's canonical reading schema, validates the actual forecast/anomaly response payloads, and checks that both required model artifacts are ready. Start the Python API and the Node backend as separate processes. The standalone `examples/node_integration.js` remains a lightweight reference router for additional ML endpoints; it is not the main application.
 
 ## Synthetic demo
 

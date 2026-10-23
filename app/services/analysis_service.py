@@ -103,7 +103,10 @@ class ModelRegistry:
         result = score_anomalies(frame, artifact)
         return {
             "status": "success",
-            "model": artifact["metadata"]["model_name"],
+            "model": {
+                "name": artifact["metadata"]["model_name"],
+                "version": artifact["metadata"]["version"],
+            },
             "results": result,
             "flagged_count": sum(item["is_anomaly"] for item in result),
             "warnings": [
