@@ -8,7 +8,7 @@ from app.data.validation import normalize_readings
 from app.models.anomaly_detection import load_anomaly_detector, score_anomalies, train_anomaly_detector
 from app.models.clustering import load_clusters, train_clusters
 from app.models.peak_prediction import load_peak_model, train_peak_model
-from app.services.analysis_service import ModelRegistry
+from app.services.analysis_service import ModelRegistry, cluster_daily_energy
 from app.services.recommendations import build_recommendations
 from app.services.statistics import consumption_statistics
 
@@ -34,6 +34,23 @@ def test_peak_stats_recommendations_and_json_safe_values(readings):
     stats = consumption_statistics(frame)
     assert stats["estimated_energy_kwh"] >= 0
     assert isinstance(build_recommendations(frame, stats), list)
+
+
+def test_daily_energy_groups_keep_similar_consumption_together():
+    energies = [1.0, 1.1, 1.2, 8.0, 8.1, 8.2]
+    profiles = pd.DataFrame({
+        "date": pd.date_range("2026-01-01", periods=len(energies)),
+        "energy_kwh_estimated": energies,
+    })
+
+    result, assignments = cluster_daily_energy(profiles)
+
+    assert result["available"] is True
+    assert result["group_count"] == 2
+    lower_ids = {assignments[f"2026-01-0{day}"]["id"] for day in range(1, 4)}
+    higher_ids = {assignments[f"2026-01-0{day}"]["id"] for day in range(4, 7)}
+    assert len(lower_ids) == len(higher_ids) == 1
+    assert next(iter(lower_ids)) < next(iter(higher_ids))
 
 
 def test_clustering_trains_and_reports_profiles(tmp_path):

@@ -74,7 +74,6 @@ export function ApplianceUsage({ analysis, readings = [] }) {
           metricKey="average"
           yAxisLabel="Mean energy per 1-min interval (Wh)"
           yUnit="Wh/interval"
-          separateYAxisLabel
           barColor={meter.color}
           peakColor={meter.peakColor}
           height={230}

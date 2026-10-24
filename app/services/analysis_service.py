@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 from app.config import PEAK_POWER_THRESHOLD_KW
 from app.data.validation import normalize_readings
@@ -13,6 +14,49 @@ from app.models.anomaly_detection import score_anomalies
 from app.models.clustering import CLUSTER_FEATURES, daily_profiles
 from app.services.recommendations import build_recommendations
 from app.services.statistics import consumption_statistics
+
+
+def cluster_daily_energy(profiles: pd.DataFrame) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    if profiles.empty or "energy_kwh_estimated" not in profiles:
+        return {"available": False, "reason": "No eligible daily energy readings are available for grouping."}, {}
+
+    energy = profiles["energy_kwh_estimated"].to_numpy(dtype=float).reshape(-1, 1)
+    distinct_values = len(np.unique(energy))
+    cluster_count = min(4, max(2, len(energy) // 3), distinct_values)
+    if len(energy) < 3 or cluster_count < 2:
+        return {"available": False, "reason": "At least three days with different energy totals are needed to form groups."}, {}
+
+    model = KMeans(n_clusters=cluster_count, random_state=42, n_init=10)
+    assignments = model.fit_predict(energy)
+    ordered_ids = sorted(range(cluster_count), key=lambda cluster_id: float(model.cluster_centers_[cluster_id, 0]))
+    labels_by_rank = {
+        2: ["Lower energy", "Higher energy"],
+        3: ["Low energy", "Medium energy", "High energy"],
+        4: ["Low energy", "Moderate energy", "High energy", "Very high energy"],
+    }[cluster_count]
+
+    assignment_by_date: dict[str, dict[str, Any]] = {}
+    groups = []
+    for rank, cluster_id in enumerate(ordered_ids):
+        members = np.flatnonzero(assignments == cluster_id)
+        group = {
+            "id": rank + 1,
+            "label": labels_by_rank[rank],
+            "mean_daily_energy_kwh": float(model.cluster_centers_[cluster_id, 0]),
+            "day_count": int(len(members)),
+        }
+        groups.append(group)
+        for index in members:
+            day = profiles.iloc[int(index)]
+            date = pd.Timestamp(day["date"]).date().isoformat()
+            assignment_by_date[date] = {"id": rank + 1, "label": labels_by_rank[rank]}
+
+    return {
+        "available": True,
+        "method": "kmeans_daily_energy",
+        "group_count": cluster_count,
+        "groups": groups,
+    }, assignment_by_date
 
 
 class ModelRegistry:
@@ -178,6 +222,15 @@ class ModelRegistry:
         frame = normalize_readings(readings)
         stats = consumption_statistics(frame)
         profiles = daily_profiles(frame)
+        energy_groups, energy_assignments = cluster_daily_energy(profiles)
+        daily_pattern = []
+        for day in stats["daily"]:
+            assignment = energy_assignments.get(day["date"])
+            daily_pattern.append({
+                **day,
+                "energy_group_id": assignment["id"] if assignment else None,
+                "energy_group_label": assignment["label"] if assignment else None,
+            })
         artifact = self.artifacts.get("clustering")
         if artifact is None:
             cluster = {"available": False, "reason": "Clustering model is not trained or history is insufficient."}
@@ -200,7 +253,8 @@ class ModelRegistry:
             "status": "success",
             "statistics": stats,
             "hourly_pattern": stats["hourly"],
-            "daily_pattern": stats["daily"],
+            "daily_pattern": daily_pattern,
+            "daily_energy_groups": energy_groups,
             "cluster": cluster,
         }
 

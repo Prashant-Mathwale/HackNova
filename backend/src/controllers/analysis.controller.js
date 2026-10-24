@@ -97,6 +97,7 @@ export async function getUsagePatterns(req, res) {
     cluster: result.cluster,
     statistics: result.statistics,
     dailyPattern: result.daily_pattern,
+    dailyEnergyGroups: result.daily_energy_groups,
     hourlyPattern: result.hourly_pattern,
     basedOn: {
       sourceReadings,

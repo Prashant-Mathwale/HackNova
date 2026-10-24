@@ -761,30 +761,13 @@ function Forecast({ analysis, readings, forecast }) {
   const horizonSteps = forecast?.horizon ?? prediction?.horizonSteps ?? 1;
   const modelName = forecast?.modelVersion || analysis?.modelVersion || 'LightGBM Regressor (Lag Autoregression)';
 
-  // Build the combined series for Actual vs Predicted visualization (Section 7)
   const chartData = useMemo(() => {
     if (!readings || readings.length === 0) return [];
-    // Take recent window (last 60 readings) for crisp visual context
-    const recent = readings.slice(-60).map((r) => ({
-      timestamp: r.timestamp,
-      Global_active_power: Number(r.Global_active_power),
-      predicted_power: null
+    return readings.slice(-60).map((reading) => ({
+      timestamp: reading.timestamp,
+      Global_active_power: Number(reading.Global_active_power)
     }));
-
-    if (prediction && Number.isFinite(predictedKw)) {
-      // Connect last reading to prediction
-      const last = recent[recent.length - 1];
-      if (last) {
-        last.predicted_power = last.Global_active_power;
-      }
-      recent.push({
-        timestamp: targetTs || new Date(new Date(last?.timestamp || Date.now()).getTime() + 60000).toISOString(),
-        Global_active_power: null,
-        predicted_power: predictedKw
-      });
-    }
-    return recent;
-  }, [readings, prediction, predictedKw, targetTs]);
+  }, [readings]);
 
   return (
     <div className="page-content">
@@ -855,24 +838,22 @@ function Forecast({ analysis, readings, forecast }) {
         </section>
       </div>
 
-      {/* Actual-vs-Predicted Visualization */}
+      {/* Recent observed readings */}
       <section className="surface chart-surface full-chart" style={{ marginTop: '20px' }}>
         <AnalyticsChart
-          title="Actual Observed Demand vs. Model Prediction"
-          subtitle="Recent measured 1-minute load with connected next-interval forecast horizon."
+          title="Recent observed demand"
+          subtitle="Actual measured active power from the most recent one-minute readings."
           data={chartData}
           series={[
-            { key: 'Global_active_power', label: 'Actual Measured Power', color: '#007a5e', strokeWidth: 2, area: true, areaGradient: 'primaryAreaGrad' },
-            { key: 'predicted_power', label: 'Predicted Active Power', color: '#2b82d9', strokeWidth: 2, dashed: true }
+            { key: 'Global_active_power', label: 'Actual Measured Power', color: '#007a5e', strokeWidth: 2, area: true, areaGradient: 'primaryAreaGrad' }
           ]}
           xAxisLabel="Timestamp (UTC)"
           yAxisLabel="Active Power (kW)"
           yUnit="kW"
-          forecastStartTimestamp={targetTs}
           height={320}
         />
         <p className="chart-caption">
-          Dashed blue path indicates the 1-step forecast step. Solid green area represents actual recorded historical readings.
+          The next-minute forecast is shown above. This chart contains actual readings only.
         </p>
       </section>
 

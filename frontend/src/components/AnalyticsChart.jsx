@@ -520,8 +520,7 @@ export function AnalyticsBarChart({
   height = 240,
   barColor = '#34a876',
   peakColor = '#e7895e',
-  showYAxisLabel = true,
-  separateYAxisLabel = false
+  showYAxisLabel = true
 }) {
   const [hoveredHour, setHoveredHour] = useState(null);
 
@@ -530,6 +529,11 @@ export function AnalyticsBarChart({
   }
 
   const maxVal = Math.max(0.1, ...hourlyData.map((d) => Number(d[metricKey]) || 0));
+  const yTicks = [1, 0.75, 0.5, 0.25, 0].map((fraction) => maxVal * fraction);
+  const plotTop = 15;
+  const plotBottom = 32;
+  const plotHeight = height - plotTop - plotBottom;
+  const formatYAxisTick = (value) => maxVal >= 10 ? value.toFixed(1) : value.toFixed(2);
   const peakHourItem = hourlyData.reduce((prev, curr) => (Number(curr[metricKey]) > Number(prev[metricKey]) ? curr : prev), hourlyData[0]);
 
   return (
@@ -539,61 +543,45 @@ export function AnalyticsBarChart({
         {subtitle && <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--muted)' }}>{subtitle}</p>}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-end', height: `${height}px`, gap: '5px', padding: `15px 10px 32px ${separateYAxisLabel ? '0' : '45px'}`, position: 'relative', borderBottom: '1px solid #e1e9e4' }}>
-        {showYAxisLabel && separateYAxisLabel && <div style={{ flex: '0 0 18px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: '10px', fontWeight: 600, color: '#576861', whiteSpace: 'nowrap' }}>
-          {yAxisLabel}
-        </div>}
-        {showYAxisLabel && !separateYAxisLabel && <div style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '11px', fontWeight: 600, color: '#576861', whiteSpace: 'nowrap' }}>
-          {yAxisLabel}
-        </div>}
+      <div style={{ display: 'flex', height: `${height}px`, gap: '7px' }}>
+        <div style={{ display: 'flex', flex: '0 0 58px', height: '100%' }}>
+          {showYAxisLabel && <div style={{ position: 'relative', flex: '0 0 18px' }}>
+            <span style={{ position: 'absolute', left: '50%', top: `${plotTop + plotHeight / 2}px`, transform: 'translate(-50%, -50%) rotate(-90deg)', whiteSpace: 'nowrap', fontSize: '10px', fontWeight: 600, color: '#576861' }}>
+              {yAxisLabel}
+            </span>
+          </div>}
+          <div style={{ position: 'relative', flex: 1 }}>
+            {yTicks.map((value, index) => <span key={index} style={{ position: 'absolute', top: `${plotTop + plotHeight * index / (yTicks.length - 1)}px`, right: '5px', transform: 'translateY(-50%)', color: '#788680', font: '10px var(--mono)' }}>
+              {formatYAxisTick(value)}
+            </span>)}
+          </div>
+        </div>
 
-        {/* 24 Hourly Columns */}
-        {hourlyData.map((item) => {
-          const val = Number(item[metricKey]) || 0;
-          const isPeak = item.hour === peakHourItem?.hour && val > 0;
-          const barHeightPct = Math.max(3, (val / maxVal) * 100);
-
-          return (
-            <div
-              key={item.hour}
-              onMouseEnter={() => setHoveredHour(item)}
-              onMouseLeave={() => setHoveredHour(null)}
-              style={{
-                flex: 1,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                position: 'relative',
-                cursor: 'pointer'
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: '24px',
-                  height: `${barHeightPct}%`,
-                  background: isPeak ? peakColor : (hoveredHour?.hour === item.hour ? '#005e49' : barColor),
-                  borderRadius: '3px 3px 0 0',
-                  transition: 'background 0.15s, height 0.2s'
-                }}
-              />
-              {/* Hour X Label */}
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: '-24px',
-                  fontSize: '10px',
-                  fontFamily: 'var(--mono)',
-                  color: item.hour % 3 === 0 ? '#63736d' : 'transparent'
-                }}
+        <div style={{ position: 'relative', flex: 1, minWidth: 0, height: '100%' }}>
+          <div style={{ position: 'absolute', top: `${plotTop}px`, right: 0, bottom: `${plotBottom}px`, left: 0, pointerEvents: 'none' }}>
+            {yTicks.map((_value, index) => <div key={index} style={{ position: 'absolute', top: `${index * 25}%`, right: 0, left: 0, borderTop: index === yTicks.length - 1 ? '1px solid #cfdad3' : '1px dashed #e4ebe6' }} />)}
+          </div>
+          <div style={{ position: 'absolute', top: `${plotTop}px`, right: 0, bottom: `${plotBottom}px`, left: 0, display: 'flex', alignItems: 'flex-end', gap: '5px' }}>
+            {hourlyData.map((item) => {
+              const val = Number(item[metricKey]) || 0;
+              const isPeak = item.hour === peakHourItem?.hour && val > 0;
+              const barHeightPct = Math.max(0, (val / maxVal) * 100);
+              return <div
+                key={item.hour}
+                onMouseEnter={() => setHoveredHour(item)}
+                onMouseLeave={() => setHoveredHour(null)}
+                style={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexDirection: 'column', cursor: 'pointer' }}
               >
-                {String(item.hour).padStart(2, '0')}h
-              </span>
-            </div>
-          );
-        })}
+                <div style={{ width: '100%', maxWidth: '24px', height: `${barHeightPct}%`, background: isPeak ? peakColor : (hoveredHour?.hour === item.hour ? '#005e49' : barColor), borderRadius: '3px 3px 0 0', transition: 'background 0.15s, height 0.2s' }} />
+              </div>;
+            })}
+          </div>
+          <div style={{ position: 'absolute', right: 0, bottom: 0, left: 0, height: `${plotBottom - 4}px`, display: 'flex' }}>
+            {hourlyData.map((item) => <div key={item.hour} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
+              {item.hour % 3 === 0 && <span style={{ color: '#63736d', font: '10px var(--mono)' }}>{String(item.hour).padStart(2, '0')}h</span>}
+            </div>)}
+          </div>
+        </div>
       </div>
 
       {/* Hover Tooltip */}

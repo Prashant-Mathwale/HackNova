@@ -268,6 +268,12 @@ test('patterns endpoint returns the K-Means assignment and daily profile', async
       statistics: { average_active_power_kw: 0.9 },
       daily_pattern: [{ date: '2024-01-01', average_power_kw: 0.9, peak_power_kw: 1.1 }],
       hourly_pattern: [],
+      daily_energy_groups: {
+        available: true,
+        method: 'kmeans_daily_energy',
+        group_count: 1,
+        groups: [{ id: 1, label: 'Lower energy', mean_daily_energy_kwh: 0.9, day_count: 1 }]
+      },
       cluster: {
         available: true,
         cluster_id: 1,
@@ -284,6 +290,7 @@ test('patterns endpoint returns the K-Means assignment and daily profile', async
     assert.equal(response.status, 200);
     assert.equal(response.body.data.cluster.cluster_id, 1);
     assert.equal(response.body.data.dailyPattern[0].average_power_kw, 0.9);
+    assert.equal(response.body.data.dailyEnergyGroups.groups[0].label, 'Lower energy');
     assert.deepEqual(response.body.data.basedOn, {
       sourceReadings: 3,
       analyzedReadings: 3,
