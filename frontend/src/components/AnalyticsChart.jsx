@@ -22,6 +22,7 @@ export function AnalyticsChart({
   height = 280,
   showAnomalies = false,
   peakPoint = null,
+  highlightPoint = null,
   forecastStartTimestamp = null,
   dateFilter = 'all',
   onDateFilterChange = null
@@ -270,6 +271,23 @@ export function AnalyticsChart({
             );
           })}
 
+          {/* Highlight the selected daily reading so it can be matched to its metric card. */}
+          {highlightPoint && (() => {
+            const pointIndex = data.findIndex((point) => point.timestamp === highlightPoint.timestamp);
+            const value = pointIndex >= 0 ? Number(data[pointIndex][highlightPoint.key]) : NaN;
+            if (pointIndex < 0 || !Number.isFinite(value)) return null;
+            const x = getX(pointIndex);
+            const y = getY(value);
+            const alignRight = pointIndex >= data.length - 2;
+            return (
+              <g key="highlight-point">
+                <line x1={x} y1={pad.top} x2={x} y2={height - pad.bottom} stroke="#007a5e" strokeDasharray="3 3" strokeWidth="1.5" />
+                <circle cx={x} cy={y} r="6" fill="#007a5e" stroke="#fff" strokeWidth="2.5" />
+                <text x={x + (alignRight ? -6 : 6)} y={pad.top + 14} textAnchor={alignRight ? 'end' : 'start'} fill="#005e49" fontSize="10" fontFamily="var(--mono)" fontWeight="bold">ASSIGNED DAY</text>
+              </g>
+            );
+          })()}
+
           {/* Forecast Vertical Horizon Line */}
           {forecastStartTimestamp && (
             (() => {
@@ -468,6 +486,12 @@ export function AnalyticsChart({
             <span>Highest Peak</span>
           </div>
         )}
+        {highlightPoint && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#576861' }}>
+            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#007a5e' }} />
+            <span>Assigned day peak</span>
+          </div>
+        )}
         {showAnomalies && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#576861' }}>
             <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#dc3545' }} />
@@ -493,7 +517,11 @@ export function AnalyticsBarChart({
   metricKey = 'average',
   yAxisLabel = 'Mean Active Power (kW)',
   yUnit = 'kW',
-  height = 240
+  height = 240,
+  barColor = '#34a876',
+  peakColor = '#e7895e',
+  showYAxisLabel = true,
+  separateYAxisLabel = false
 }) {
   const [hoveredHour, setHoveredHour] = useState(null);
 
@@ -511,11 +539,13 @@ export function AnalyticsBarChart({
         {subtitle && <p style={{ margin: '3px 0 0', fontSize: '12px', color: 'var(--muted)' }}>{subtitle}</p>}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-end', height: `${height}px`, gap: '5px', padding: '15px 10px 32px 45px', position: 'relative', borderBottom: '1px solid #e1e9e4' }}>
-        {/* Y-Axis Label */}
-        <div style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '11px', fontWeight: 600, color: '#576861', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', height: `${height}px`, gap: '5px', padding: `15px 10px 32px ${separateYAxisLabel ? '0' : '45px'}`, position: 'relative', borderBottom: '1px solid #e1e9e4' }}>
+        {showYAxisLabel && separateYAxisLabel && <div style={{ flex: '0 0 18px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: '10px', fontWeight: 600, color: '#576861', whiteSpace: 'nowrap' }}>
           {yAxisLabel}
-        </div>
+        </div>}
+        {showYAxisLabel && !separateYAxisLabel && <div style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '11px', fontWeight: 600, color: '#576861', whiteSpace: 'nowrap' }}>
+          {yAxisLabel}
+        </div>}
 
         {/* 24 Hourly Columns */}
         {hourlyData.map((item) => {
@@ -544,7 +574,7 @@ export function AnalyticsBarChart({
                   width: '100%',
                   maxWidth: '24px',
                   height: `${barHeightPct}%`,
-                  background: isPeak ? '#e7895e' : (hoveredHour?.hour === item.hour ? '#005e49' : '#34a876'),
+                  background: isPeak ? peakColor : (hoveredHour?.hour === item.hour ? '#005e49' : barColor),
                   borderRadius: '3px 3px 0 0',
                   transition: 'background 0.15s, height 0.2s'
                 }}

@@ -70,3 +70,7 @@ export function getForecast(analysisId) {
 export function getAnomalies(analysisId) {
   return request(`/analyses/${analysisId}/anomalies?page=1&pageSize=100`);
 }
+
+export function getUsagePatterns(analysisId) {
+  return request(`/analyses/${analysisId}/patterns`);
+}

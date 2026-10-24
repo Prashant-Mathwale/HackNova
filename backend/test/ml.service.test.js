@@ -1,6 +1,6 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectAnomalies, predictConsumption } from '../src/services/ml.service.js';
+import { analyzeUsagePatterns, detectAnomalies, predictConsumption } from '../src/services/ml.service.js';
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -142,6 +142,46 @@ test('maps FastAPI validation and unavailable-model responses to safe backend er
     detectAnomalies([{ timestamp: new Date(), Global_active_power: 1 }]),
     { code: 'ML_MODEL_UNAVAILABLE', statusCode: 503 }
   );
+});
+
+test('sends canonical readings to Python and returns daily usage patterns', async () => {
+  const reading = {
+    timestamp: new Date('2024-01-01T00:00:00Z'),
+    Global_active_power: 0.8,
+    Global_reactive_power: 0.1,
+    Voltage: 230,
+    Global_intensity: 4,
+    Sub_metering_1: 0,
+    Sub_metering_2: 1,
+    Sub_metering_3: 2
+  };
+  let sentPayload;
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /analyze\/patterns$/);
+    sentPayload = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      status: 'success',
+      statistics: {},
+      daily_pattern: [{ date: '2024-01-01', average_power_kw: 0.8, peak_power_kw: 1.2 }],
+      hourly_pattern: [],
+      cluster: {
+        available: true,
+        cluster_id: 1,
+        description: 'higher-consumption, relatively steady days',
+        profile: { average_power_kw: 0.8 },
+        assignment_scope: '2024-01-01',
+        interpretation: 'Similarity to learned daily profiles.'
+      }
+    }), { status: 200 });
+  };
+
+  const result = await analyzeUsagePatterns([reading]);
+
+  assert.equal(sentPayload.readings[0].timestamp, reading.timestamp.toISOString());
+  assert.equal(sentPayload.readings[0].active_power_kw, 0.8);
+  assert.equal(sentPayload.readings[0].Global_active_power, undefined);
+  assert.equal(result.cluster.cluster_id, 1);
+  assert.equal(result.daily_pattern.length, 1);
 });
 
 test('health requires both backend-used model artifacts to be loaded', async () => {

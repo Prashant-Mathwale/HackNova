@@ -6,6 +6,7 @@ import {
   getAnomalies,
   getConsumption,
   getForecast,
+  getUsagePatterns,
   removeAnalysis
 } from '../controllers/analysis.controller.js';
 
@@ -13,6 +14,7 @@ const router = Router();
 router.get('/', asyncHandler(getAnalysisHistory));
 router.get('/:analysisId', asyncHandler(getAnalysis));
 router.get('/:analysisId/forecast', asyncHandler(getForecast));
+router.get('/:analysisId/patterns', asyncHandler(getUsagePatterns));
 router.get('/:analysisId/anomalies', asyncHandler(getAnomalies));
 router.get('/:analysisId/consumption', asyncHandler(getConsumption));
 router.delete('/:analysisId', asyncHandler(removeAnalysis));

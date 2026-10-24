@@ -8,11 +8,15 @@ import {
 import { getAnomalies, getConsumptionSample, getForecast, loginUser, registerUser, uploadCsv, waitForAnalysis } from './api.js';
 import { AnalyticsChart, AnalyticsBarChart } from './components/AnalyticsChart.jsx';
 import { RecommendationsSection } from './components/RecommendationsSection.jsx';
+import { ApplianceUsage } from './components/ApplianceUsage.jsx';
+import { UsagePatterns } from './components/UsagePatterns.jsx';
 
 const navigation = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'upload', label: 'Upload data', icon: CloudUpload },
   { id: 'consumption', label: 'Consumption', icon: Activity },
+  { id: 'appliances', label: 'Appliance usage', icon: Zap },
+  { id: 'patterns', label: 'Usage patterns', icon: BarChart3 },
   { id: 'peak', label: 'Peak demand', icon: Bolt },
   { id: 'forecast', label: 'Forecast', icon: Waves },
   { id: 'anomalies', label: 'Anomaly review', icon: TriangleAlert },
@@ -1213,6 +1217,8 @@ function App() {
   else if (!analysis) currentPage = <div className="page-content"><PageHeading eyebrow={`ENERGY WORKSPACE / ${activeItem.label.toUpperCase()}`} title={activeItem.label} subtitle="Upload a CSV file to create an analysis." /><EmptyAnalysis onUpload={() => navigate('upload')} /></div>;
   else if (activePage === 'overview') currentPage = <Overview analysis={analysis} readings={readings} forecast={forecast} anomalies={anomalies} onUpload={() => navigate('upload')} onNavigate={navigate} />;
   else if (activePage === 'consumption') currentPage = <Consumption analysis={analysis} readings={readings} />;
+  else if (activePage === 'appliances') currentPage = <ApplianceUsage analysis={analysis} readings={readings} />;
+  else if (activePage === 'patterns') currentPage = <UsagePatterns analysis={analysis} />;
   else if (activePage === 'peak') currentPage = <PeakDemand analysis={analysis} readings={readings} />;
   else if (activePage === 'forecast') currentPage = <Forecast analysis={analysis} readings={readings} forecast={forecast} />;
   else if (activePage === 'anomalies') currentPage = <Anomalies analysis={analysis} anomalies={anomalies} />;

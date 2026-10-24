@@ -229,3 +229,69 @@ test('getAnalysis returns availableColumns along with analysis metadata', async 
     Analysis.findById = originalFindById;
   }
 });
+
+test('patterns endpoint returns the K-Means assignment and daily profile', async () => {
+  const analysisId = new mongoose.Types.ObjectId();
+  const originalFindById = Analysis.findById;
+  const originalReadingFind = Reading.find;
+  const originalFetch = globalThis.fetch;
+  const readings = Array.from({ length: 3 }, (_value, index) => ({
+    timestamp: new Date(Date.UTC(2024, 0, 1, 0, index)),
+    Global_active_power: 0.8 + index / 10,
+    Global_reactive_power: 0.1,
+    Voltage: 230,
+    Global_intensity: 4,
+    Sub_metering_1: 0,
+    Sub_metering_2: 1,
+    Sub_metering_3: 2
+  }));
+  const cursor = {
+    async *[Symbol.asyncIterator]() { yield* readings; },
+    async close() {}
+  };
+  const query = {
+    select() { return this; },
+    sort() { return this; },
+    lean() { return this; },
+    cursor() { return cursor; }
+  };
+  Analysis.findById = () => ({
+    select() { return this; },
+    async lean() { return { _id: analysisId, status: 'completed', totalRows: 3, summary: { validReadingCount: 3 } }; }
+  });
+  Reading.find = () => query;
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /analyze\/patterns$/);
+    assert.equal(JSON.parse(options.body).readings.length, 3);
+    return new Response(JSON.stringify({
+      status: 'success',
+      statistics: { average_active_power_kw: 0.9 },
+      daily_pattern: [{ date: '2024-01-01', average_power_kw: 0.9, peak_power_kw: 1.1 }],
+      hourly_pattern: [],
+      cluster: {
+        available: true,
+        cluster_id: 1,
+        description: 'higher-consumption, relatively steady days',
+        profile: { average_power_kw: 0.8 },
+        assignment_scope: '2024-01-01',
+        interpretation: 'Similarity to learned daily profiles.'
+      }
+    }), { status: 200 });
+  };
+
+  try {
+    const response = await request(app).get(`/api/analyses/${analysisId}/patterns`);
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.cluster.cluster_id, 1);
+    assert.equal(response.body.data.dailyPattern[0].average_power_kw, 0.9);
+    assert.deepEqual(response.body.data.basedOn, {
+      sourceReadings: 3,
+      analyzedReadings: 3,
+      sampled: false
+    });
+  } finally {
+    Analysis.findById = originalFindById;
+    Reading.find = originalReadingFind;
+    globalThis.fetch = originalFetch;
+  }
+});

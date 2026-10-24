@@ -162,3 +162,34 @@ export async function detectAnomalies(readings) {
     })
   };
 }
+
+export async function analyzeUsagePatterns(readings) {
+  if (readings.length === 0 || readings.length > 10000) {
+    throw new AppError(422, 'INVALID_PATTERN_SAMPLE', 'Pattern analysis requires between 1 and 10000 readings.');
+  }
+
+  const result = await postJson('analyze/patterns', {
+    readings: readings.map(toCanonicalReading)
+  });
+
+  if (
+    result?.status !== 'success' ||
+    !Array.isArray(result?.daily_pattern) ||
+    !Array.isArray(result?.hourly_pattern) ||
+    !result?.statistics ||
+    typeof result?.cluster?.available !== 'boolean'
+  ) {
+    throw new AppError(502, 'INVALID_ML_RESPONSE', 'The pattern analysis service returned an invalid response.');
+  }
+
+  if (result.cluster.available && (
+    !Number.isInteger(result.cluster.cluster_id) ||
+    typeof result.cluster.description !== 'string' ||
+    !result.cluster.profile ||
+    typeof result.cluster.profile !== 'object'
+  )) {
+    throw new AppError(502, 'INVALID_ML_RESPONSE', 'The pattern analysis service returned an invalid cluster.');
+  }
+
+  return result;
+}
